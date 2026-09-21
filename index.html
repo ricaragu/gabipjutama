@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>Calculadora Pro V2</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        
+        html, body {
+            margin: 0; height: 100%; background: #000;
+            font-family: -apple-system, system-ui, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+            touch-action: manipulation; overflow: hidden;
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+        }
+        input, select, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto; user-select: auto; }
+        .hidden { display: none !important; }
+
+        /* PORTAL MAESTRO */
+        #main_portal { position: fixed; inset: 0; z-index: 1000; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #main_portal h1 { color: #ff9f0a; margin-bottom: 2rem; font-weight: 300; letter-spacing: 2px; }
+        .portal-btn { background: #1c1c1e; border: 1px solid #333; color: white; padding: 22px; width: 88%; max-width: 350px; text-align: center; font-size: 1.25rem; margin: 10px 0; border-radius: 18px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: transform 0.1s, background 0.1s; }
+        .portal-btn:active { transform: scale(0.96); background: #2c2c2e; border-color: #ff9f0a; }
+        .portal-btn.btn-config { background: #141416; border-color: #ff9f0a; color: #ff9f0a; font-size: 1.05rem; padding: 15px; margin-top: 25px; }
+
+        /* APP COMANDA */
+        #prn_selector { position: fixed; inset: 0; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1rem; color: #fff; z-index: 100; background: #000; padding: 2rem 1rem; overflow-y: auto; }
+        #prn_selector h1 { margin-bottom: 0.5rem; text-align: center; font-size: 1.5rem; }
+        .status-box { width: 100%; max-width: 300px; background: #222; border: 1px solid #444; border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; cursor: pointer; }
+        .status-box:active { background: #333; }
+        #prn_selector button.primary { padding: 1rem 2rem; border: none; border-radius: 999px; background: #333; color: #fff; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; font-weight: bold; }
+        #prn_selector button.primary:active { transform: scale(0.98); background: #555;}
+        #prn_selector button.secondary { padding: 0.8rem 2rem; border: 1px solid #555; border-radius: 999px; background: transparent; color: #aaa; width: 100%; max-width: 200px; margin-top: 1rem; }
+        
+        .delay-container { margin-top: 1.5rem; width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 0.5rem; text-align: center; }
+        .delay-container label { color: #aaa; font-size: 0.9rem; text-transform: uppercase; }
+        #delaySelect { padding: 0.8rem; border-radius: 12px; background: #222; color: #fff; border: 1px solid #444; font-size: 1rem; text-align: center; width: 100%; }
+        
+        #prn_app { position: fixed; inset: 0; display: grid; grid-template-rows: 3fr 7fr; z-index: 1; background: #000; }
+        #prn_display { color: #fff; background: #000; display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 1.5rem 1.5rem 1.5rem; font-size: 4rem; font-weight: 400; letter-spacing: -1px; }
+        #prn_keys { display: grid; gap: 0.8rem; padding: 1rem; grid-template-columns: repeat(4, 1fr); align-content: end; }
+        .k-prn { border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; width: 100%; padding: 0; }
+        
+        /* ESTILO IOS */
+        .ios .k-prn { border-radius: 50%; aspect-ratio: 1/1; font-size: 2.1rem; background: #333333; color: #ffffff; }
+        .ios .k-prn.gray { background: #a5a5a5; color: #000; }
+        .ios .k-prn.op { background: #ff9500; color: #ffffff; }
+        .ios .k-prn.eq { background: #ff9500; color: #ffffff; }
+        .ios .k-prn.zero { grid-column: span 2; border-radius: 999px; aspect-ratio: auto; height: 100%; justify-content: flex-start; padding-left: 2.5rem; }
+        
+        /* ESTILO ANDROID (SAMSUNG ONE UI) */
+        .android #prn_app { background: #f3f4f8; }
+        .android #prn_display { background: #f3f4f8; color: #1c528d; font-weight: 300; padding-bottom: 2rem; }
+        .android .k-prn { border-radius: 50%; aspect-ratio: 1/1; height: auto; font-size: 2rem; background: #e8edf4; color: #1c528d; font-weight: 400; transition: background 0.1s; }
+        .android .k-prn:active { background: #a9bacb; }
+        .android .k-prn.gray { color: #d13a29; }
+        .android .k-prn.op { color: #a45a2b; font-size: 2.2rem; }
+        .android .k-prn.eq { background: #cd7739; color: #ffffff; }
+        .android .k-prn.eq:active { background: #a95a22; }
+        .android .k-prn.zero { grid-column: span 2; border-radius: 999px; aspect-ratio: auto; height: 100%; justify-content: flex-start; padding-left: 2.5rem; }
+
+        .overlay { position: absolute; left: 10%; top: 25%; width: 80%; max-height: 65%; overflow: auto; background: rgba(0,0,0,.94); border-radius: 14px; border: 1px solid #444; color: #fff; z-index: 9999; }
+        .overlay .title { padding: 0.8rem 1.2rem; font-weight: 600; border-bottom: 1px solid #333; }
+        #prn_menuList>div { padding: 0.7rem 1.2rem; border-bottom: 1px solid #222; cursor: pointer; font-size: 0.95rem; }
+        #prn_menuList>div.sel { background: #ff9500; color: #000; }
+
+        /* CALCULADORA PRO */
+        :root { --btn-gray: #a5a5a5; --btn-dark: #333; --btn-orange: #ff9f0a; }
+        #calc_setup { position: fixed; inset: 0; z-index: 100; background: #111; color: white; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; }
+        .calc-config-block { background: #222; border: 1px solid #444; border-radius: 15px; padding: 15px; margin-bottom: 10px; cursor: pointer; }
+        .calc-config-block.selected { border: 2px solid var(--btn-orange); background: #2a2010; }
+        .calc-config-block h3 { margin-top:0; color:#ff9f0a; }
+        .calc-config-block input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 8px; border: 1px solid #555; background: #000; color: white; text-align: center; font-size: 1rem; }
+        .btn-start-calc { background: var(--btn-orange); border: none; padding: 18px; border-radius: 15px; color: white; font-size: 1.2rem; font-weight: bold; margin-top: auto; margin-bottom: 20px; width:100%; cursor: pointer; }
+        .btn-start-calc:active { filter: brightness(0.8); }
+        
+        #calc_app { position: fixed; inset: 0; display: grid; grid-template-rows: 3fr 7fr; width: 100%; height: 100%; background: #000; }
+        #calc_display-container { flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; padding: 0 25px 10px; }
+        #calc_history { color: #888; font-size: 1.5rem; min-height: 1.8rem; white-space: nowrap; text-align: right; width: 100%; overflow: hidden; }
+        #calc_display { color: white; font-size: 5.5rem; font-weight: 300; line-height: 1; }
+        #calc_keys-container { width: 100%; padding: 10px 15px 20px 15px; display: flex; align-items: flex-end; }
+        #calc_keys { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .k-calc { border: none; border-radius: 50%; aspect-ratio: 1/1; width: 100%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; cursor: pointer; }
+        .k-calc:active { filter: brightness(1.4); transition: 0s; }
+        .c-num { background: var(--btn-dark); color: white; }
+        .c-gray { background: var(--btn-gray); color: black; }
+        .c-op { background: var(--btn-orange); color: white; font-size: 2.5rem; }
+        .c-zero { grid-column: span 2; aspect-ratio: auto; border-radius: 100px; justify-content: flex-start; padding-left: 10%; }
+
+        /* =========================================================================
+           MÓDULO DE EDICIÓN VISUAL (CARTAS, PRECIOS, LOGOS Y TICKET)
+           ========================================================================= */
+        #editor_container { position: fixed; inset: 0; z-index: 2000; background: #121214; color: #fff; display: flex; flex-direction: column; overflow: hidden; }
+        .editor-header { padding: 14px 16px; background: #1a1a1e; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .editor-header h2 { margin: 0; font-size: 1.15rem; color: #ff9f0a; }
+        .btn-top { background: #2c2c30; border: 1px solid #555; color: #fff; padding: 6px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        
+        .editor-tabs { display: flex; background: #1a1a1e; border-bottom: 1px solid #2a2a2e; overflow-x: auto; scrollbar-width: none; }
+        .editor-tabs::-webkit-scrollbar { display: none; }
+        .editor-tab { flex: 1; text-align: center; padding: 12px 10px; font-size: 0.9rem; color: #888; font-weight: 600; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; }
+        .editor-tab.active { color: #ff9f0a; border-bottom-color: #ff9f0a; background: #222228; }
+        
+        .editor-content { flex: 1; overflow-y: auto; padding: 15px; }
+        
+        .cat-group { background: #1c1c20; border: 1px solid #333; border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+        .cat-title-edit { font-size: 1.05rem; font-weight: bold; color: #ff9f0a; margin-bottom: 10px; border-bottom: 1px solid #2d2d35; padding-bottom: 6px; }
+        .dish-row { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid #282830; }
+        .dish-row:last-child { border-bottom: none; }
+        .dish-header-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; }
+        .dish-inputs { display: flex; gap: 8px; align-items: center; }
+        .dish-inputs input[type="text"] { flex: 1; padding: 8px 10px; background: #0c0c0e; border: 1px solid #444; border-radius: 8px; color: #fff; font-size: 0.95rem; }
+        .dish-inputs input[type="number"] { width: 85px; padding: 8px; background: #0c0c0e; border: 1px solid #444; border-radius: 8px; color: #ff9f0a; font-weight: bold; text-align: right; font-size: 0.95rem; }
+        .char-counter { font-size: 0.75rem; color: #666; text-align: right; margin-top: 2px; }
+        .char-counter.warning { color: #ff9f0a; }
+
+        /* PANEL LOGOS */
+        .logo-mode-selector { display: flex; gap: 10px; margin-bottom: 15px; }
+        .logo-mode-btn { flex: 1; padding: 10px; background: #222; border: 1px solid #444; border-radius: 10px; color: #fff; font-size: 0.85rem; text-align: center; cursor: pointer; font-weight: 600; }
+        .logo-mode-btn.active { border-color: #ff9f0a; background: #2d2416; color: #ff9f0a; }
+        .logo-preview-box { width: 100%; max-width: 384px; margin: 15px auto; background: #fff; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; }
+        .logo-canvas { max-width: 100%; height: auto; image-rendering: pixelated; }
+
+        /* VISTA PREVIA DEL TICKET */
+        .ticket-preview { width: 100%; max-width: 320px; margin: 10px auto; background: #fffdf5; color: #000; font-family: "Courier New", Courier, monospace; padding: 20px 14px; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); font-size: 0.85rem; line-height: 1.25; }
+        .ticket-preview-logo { display: block; max-width: 100%; margin: 0 auto 10px auto; }
+        
+        .editor-footer { padding: 12px 16px; background: #1a1a1e; border-top: 1px solid #333; display: flex; gap: 10px; }
+        .btn-save { flex: 2; padding: 14px; background: #ff9f0a; border: none; border-radius: 12px; color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; }
+        .btn-save:active { filter: brightness(0.8); }
+        .btn-reset { flex: 1; padding: 14px; background: #333; border: 1px solid #555; border-radius: 12px; color: #ff4444; font-size: 0.9rem; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- PORTAL MAESTRO -->
+    <div id="main_portal">
+        <h1>PORTAL MÁGICO</h1>
+        <div class="portal-btn" onclick="launchComanda()">🖨️ Comanda Mágica</div>
+        <div class="portal-btn" onclick="launchCalc()">📱 Calculadora Pro</div>
+        <div class="portal-btn btn-config" onclick="openEditor()">⚙️ Personalizar Menús y Logos</div>
+    </div>
+
+    <!-- COMANDA MÁGICA -->
+    <div id="comanda_container" class="hidden">
+        <div id="prn_selector">
+            <div id="statusWrapper" style="width:100%; display:flex; flex-direction:column; gap:8px; align-items:center;">
+                <div class="status-box" onclick="handleConnectClick()">
+                    <span style="color:#aaa;">Bluetooth PeriPage:</span> 
+                    <span id="bleStatusText" style="font-weight:bold; color:#ff4444;">🔴 Desconectada (Tocar)</span>
+                </div>
+            </div>
+            
+            <h1 id="selTitle">Selecciona estilo</h1>
+            <button id="btnAndroid" class="primary">Calculadora Samsung (S23)</button>
+            <button id="btnIOS" class="primary">Calculadora iPhone</button>
+            
+            <h1 id="cartaTitle" class="hidden">Elige carta</h1>
+            <button id="btnGabip" class="primary hidden">Carta Gabip</button>
+            <button id="btnJutama" class="primary hidden">Carta Jutama</button>
+            
+            <div id="timeWrapper" class="delay-container hidden">
+                <label for="delaySelect">Ritmo App (Entre menús)</label>
+                <select id="delaySelect">
+                    <option value="100">Instantáneo (0.1s)</option>
+                    <option value="1000">Rápido (1s)</option>
+                    <option value="3000">Normal (3s)</option>
+                    <option value="6000" selected>Lento (6s)</option>
+                    <option value="8000">Muy Lento (8s)</option>
+                    <option value="10000">Eterno (10s)</option>
+                </select>
+            </div>
+            
+            <button id="btnBack" class="secondary hidden">← Volver atrás</button>
+        </div>
+
+        <div id="prn_app" class="hidden">
+            <div id="prn_display">0</div>
+            <div id="prn_keys">
+                <button class="k-prn gray" id="ac">⌫</button>
+                <button class="k-prn gray" id="secret">C</button>
+                <button class="k-prn gray">%</button>
+                <button class="k-prn op">÷</button>
+                <button class="k-prn">7</button>
+                <button class="k-prn">8</button>
+                <button class="k-prn">9</button>
+                <button class="k-prn op">×</button>
+                <button class="k-prn">4</button>
+                <button class="k-prn">5</button>
+                <button class="k-prn">6</button>
+                <button class="k-prn op">−</button>
+                <button class="k-prn">1</button>
+                <button class="k-prn">2</button>
+                <button class="k-prn">3</button>
+                <button class="k-prn op" id="plus">+</button>
+                <button class="k-prn zero">0</button>
+                <!-- Chivato de estado: coma (,) = desconectado, punto (.) = conectado -->
+                <button class="k-prn" id="btnDecimal">,</button>
+                <button class="k-prn eq">=</button>
+            </div>
+            <div id="prn_menu" class="overlay hidden">
+                <div class="title" id="prn_menuTitle"></div>
+                <div id="prn_menuList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CALCULADORA PRO -->
+    <div id="calc_container" class="hidden">
+        <div id="calc_setup">
+            <h2 style="color:var(--btn-orange); text-align:center;">Configuración Mágica</h2>
+            <div class="calc-config-block selected" id="b0" onclick="c_sel(0)">
+                <h3>MEMORIA A</h3>
+                <input type="text" id="fn0" value="15987" onchange="saveCalc()">
+                <input type="number" id="ol0" value="3" onchange="saveCalc()">
+            </div>
+            <div class="calc-config-block" id="block1" onclick="c_sel(1)">
+                <h3>MEMORIA B</h3>
+                <input type="text" id="fn1" value="7744" onchange="saveCalc()">
+                <input type="number" id="ol1" value="2" onchange="saveCalc()">
+            </div>
+            <div class="calc-config-block" id="block2" onclick="c_sel(2)">
+                <h3>MEMORIA C</h3>
+                <input type="text" id="fn2" value="100288" onchange="saveCalc()">
+                <input type="number" id="ol2" value="4" onchange="saveCalc()">
+            </div>
+            <button class="btn-start-calc" onclick="c_start()">ENTRAR A LA CALCULADORA</button>
+        </div>
+
+        <div id="calc_app" class="hidden">
+            <div id="calc_display-container">
+                <div id="calc_history"></div>
+                <div id="calc_display">0</div>
+            </div>
+            <div id="calc_keys-container">
+                <div id="calc_keys">
+                    <button class="k-calc c-gray" onclick="c_backspace()">⌫</button>
+                    <button class="k-calc c-gray">+/-</button>
+                    <button class="k-calc c-gray">%</button>
+                    <button class="k-calc c-op" onclick="c_handleOp('/')">÷</button>
+                    <button class="k-calc c-num" onclick="c_press(7)">7</button>
+                    <button class="k-calc c-num" onclick="c_press(8)">8</button>
+                    <button class="k-calc c-num" onclick="c_press(9)">9</button>
+                    <button class="k-calc c-op" onclick="c_handleOp('*')">×</button>
+                    <button class="k-calc c-num" onclick="c_press(4)">4</button>
+                    <button class="k-calc c-num" onclick="c_press(5)">5</button>
+                    <button class="k-calc c-num" onclick="c_press(6)">6</button>
+                    <button class="k-calc c-op" onclick="c_handleOp('-')">−</button>
+                    <button class="k-calc c-num" onclick="c_press(1)">1</button>
+                    <button class="k-calc c-num" onclick="c_press(2)">2</button>
+                    <button class="k-calc c-num" onclick="c_press(3)">3</button>
+                    <button class="k-calc c-op" onclick="c_handleOp('+')">+</button>
+                    <button class="k-calc c-num c-zero" onclick="c_press(0)">0</button>
+                    <button class="k-calc c-num" onclick="c_press('.')">,</button>
+                    <button class="k-calc c-op" onclick="c_handleEqual()">=</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MÓDULO EDITOR DE MENÚS Y LOGOS -->
+    <div id="editor_container" class="hidden">
+        <div class="editor-header">
+            <h2>⚙️ Personalizador Mágico</h2>
+            <button class="btn-top" onclick="closeEditor()">← Volver</button>
+        </div>
+        
+        <div class="editor-tabs">
+            <div class="editor-tab active" id="tab_gabip" onclick="switchEditorTab('gabip')">Carta Gabip</div>
+            <div class="editor-tab" id="tab_jutama" onclick="switchEditorTab('jutama')">Carta Jutama</div>
+            <div class="editor-tab" id="tab_logos" onclick="switchEditorTab('logos')">Logos y Textos</div>
+            <div class="editor-tab" id="tab_ticket" onclick="switchEditorTab('ticket')">Vista Ticket</div>
+        </div>
+
+        <div class="editor-content" id="editor_body">
+            <!-- Rellenado dinámicamente -->
+        </div>
+
+        <div class="editor-footer">
+            <button class="btn-save" onclick="saveEditorChanges()">💾 Guardar Cambios</button>
+            <button class="btn-reset" onclick="confirmResetDefaults()">🔄 Originales</button>
+        </div>
+    </div>
+
+    <!-- CANVAS OCULTO PARA GENERACIÓN DE LOGOS -->
+    <canvas id="logoGenCanvas" width="384" height="150" class="hidden"></canvas>
+
+    <!-- ARCHIVOS JS -->
+    <script src="logos_and_font.js"></script>
+    <script src="peripage_driver.js"></script>
+
+    <script>
+        // ==========================================
+        // REGISTRO PWA (OFFLINE SERVICE WORKER)
+        // ==========================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW fail:', err));
+            });
+        }
+
+        // ==========================================
+        // PERSISTENCIA LOCAL (CALCULADORA PRO)
+        // ==========================================
+        function saveCalc() {
+            localStorage.setItem('calc_fn0', document.getElementById('fn0').value);
+            localStorage.setItem('calc_ol0', document.getElementById('ol0').value);
+            localStorage.setItem('calc_fn1', document.getElementById('fn1').value);
+            localStorage.setItem('calc_ol1', document.getElementById('ol1').value);
+            localStorage.setItem('calc_fn2', document.getElementById('fn2').value);
+            localStorage.setItem('calc_ol2', document.getElementById('ol2').value);
+        }
+
+        function loadCalc() {
+            if (localStorage.getItem('calc_fn0')) document.getElementById('fn0').value = localStorage.getItem('calc_fn0');
+            if (localStorage.getItem('calc_ol0')) document.getElementById('ol0').value = localStorage.getItem('calc_ol0');
+            if (localStorage.getItem('calc_fn1')) document.getElementById('fn1').value = localStorage.getItem('calc_fn1');
+            if (localStorage.getItem('calc_ol1')) document.getElementById('ol1').value = localStorage.getItem('calc_ol1');
+            if (localStorage.getItem('calc_fn2')) document.getElementById('fn2').value = localStorage.getItem('calc_fn2');
+            if (localStorage.getItem('calc_ol2')) document.getElementById('ol2').value = localStorage.getItem('calc_ol2');
+            c_sel(0);
+        }
+
+        window.addEventListener('load', loadCalc);
+
+        // ==========================================
+        // DATOS POR DEFECTO DE LAS CARTAS (ORIGINALES)
+        // ==========================================
+        const defaultCategoriesGabip = {
+            'A': { title: 'Abriendo boca', items: [ { code:'0A', name:'Habitas con jamon iberico', price:20 }, { code:'0B', name:'Fina burrata, pesto y tomate', price:12.5 }, { code:'0C', name:'Fritada japonesa de verduras', price:12.5 }, { code:'0D', name:'Surtido embutidos y quesos', price:14 }, { code:'0E', name:'Patitas pollo picantonas (2u)', price:8.5 }, { code:'0F', name:'Sanfaina de bacalao con foie', price:14 } ] },
+            'H': { title:'Huevos y tortillas', items:[ { code:'0S', name:'Gentil huevo relleno (1u)', price:4.5 }, { code:'0T', name:'Tortilla patata y butifarra', price:8.5 }, { code:'0U', name:'Lacon y gambitas en tortilla', price:10.5 }, { code:'0V', name:'Ligera tortilla de parmesano', price:10.5 } ] },
+            'F': { title:'Fieles de la casa', items:[ { code:'0G', name:'Tambor de verduras y cordero', price:16 }, { code:'0H', name:'Gambitas a la andaluza', price:12 }, { code:'0I', name:'Garbanzos con bacalao', price:12 } ] },
+            'S': { title:'Sugerencias', items:[ { code:'0J', name:'Lomos cordero y patatas', price:16.5 }, { code:'0K', name:'Ternera con chimichurri', price:14.5 }, { code:'0L', name:'Libritos berenjena y tomate', price:16.5 }, { code:'0M', name:'Gazpacho con toques de fresa', price:10.5 }, { code:'0N', name:'Laminado espalda de cabrito', price:16.5 } ] },
+            'P': { title:'Pasta fresca', items:[ { code:'0O', name:'Tortellini a la palermitana', price:20 }, { code:'0P', name:'Gnocchis frutti di mare', price:16 }, { code:'0Q', name:'Gorgonzola sobre papardelle', price:16 }, { code:'0R', name:'Linguini al nero de seppia', price:22 } ] },
+            'T': { title:'Toca arroz', items:[ { code:'0W', name:'Festival arroz con bogavante', price:36 }, { code:'0X', name:'Carabineros y verduras arroz', price:28 }, { code:'0Y', name:'Fuente de arroz conejo buti',price:36 } ] },
+            'G': { title:'Granja y corral', items:[ { code:'1D', name:'Filet Mignon salsa de setas', price:40 }, { code:'1E', name:'Codorniz con crema de higos', price:32 }, { code:'1F', name:'Cordero del Roncal con patatas', price:32 }, { code:'1G', name:'Fileteado de buey al Oporto', price:40 } ] },
+            'L': { title:'La pescaderia', items:[ { code:'0Z', name:'Filetes de caballa al horno', price:34 }, { code:'1A', name:'Ceviche peruano de gambas', price:26 }, { code:'1B', name:'Cazuela bacalao y marisco', price:26 }, { code:'1C', name:'Fajitas merluza y verduras', price:34 } ] },
+            'D': { title:'Final dulce', items:[ { code:'1H', name:'Brownie con nueces y helado', price:6.5 }, { code:'1I', name:'Amable mousse de turron', price:10.5 }, { code:'1J', name:'Arandanos con yogur griego', price:10.5 }, { code:'1K', name:'Barquillo helado con toppins', price:6.5 } ] },
+            'C': { title:'Crepes golosas', items:[ { code:'1L', name:'Albaricoque y chocolate', price:18.5 }, { code:'1M', name:'Brie con miel y nueces', price:14.5 }, { code:'1N', name:'Blanco chocolate y fresas', price:14.5 }, { code:'1O', name:'Almendras, nata y helado', price:18.5 } ] },
+            'B': { title:'Buenos cocktails', items:[ { code:'1P', name:'Americano', price:14 }, { code:'1Q', name:'Blody Mary', price:14 }, { code:'1R', name:'Caipirinha', price:14 }, { code:'1S', name:'Cosmopolitan', price:14 }, { code:'1T', name:'Daikiri', price:14 }, { code:'1U', name:'Mai-tai', price:14 } ] },
+            'Z': { title:'Alcoholes y digestivos', items:[ { code:'1V', name:'Amaretto Disanoro', price:10 }, { code:'1W', name:'Crema de orujo', price:10 }, { code:'1X', name:'Licor de Madrono', price:10 }, { code:'1Y', name:'Conac de campana', price:10 } ] }
+        };
+
+        const defaultCategoriesJutama = {
+            'A': { title: 'Asiático Pasión', items: [ { code:'0A', name:'Hot Pot', price:20 }, { code:'0B', name:'Frito de Arroz', price:12.5 }, { code:'0C', name:'Samosa Filipina', price:14 }, { code:'0D', name:'Fritada de verduras', price:12.5 }, { code:'0E', name:'Pani puri', price:8.5 }, { code:'0F', name:'Satay', price:14 } ] },
+            'F': { title:'Flores de Oriente', items:[ { code:'0G', name:'Gado Gado', price:12 }, { code:'0H', name:'Tandoori chicken', price:16 }, { code:'0I', name:'Gyozas', price:12 } ] },
+            'S': { title:'Sopas Especiales', items:[ { code:'0J', name:'Ligero miso', price:16.5 }, { code:'0K', name:'Tori Paitan Ramen', price:14.5 }, { code:'0L', name:'Lentil Sopa', price:16.5 }, { code:'0M', name:'Gulai', price:10.5 }, { code:'0N', name:'Laksa', price:16.5 } ] },
+            'P': { title:'Puesto Japonés', items:[ { code:'0O', name:'Tataki magret de pato', price:20 }, { code:'0P', name:'Go Yakitori', price:16 }, { code:'0Q', name:'Long Sashimi', price:22 }, { code:'0R', name:'Glam Yakisoba', price:16 } ] },
+            'H': { title:'Happy China', items:[ { code:'0S', name:'Grato Rollito Primavera', price:4.5 }, { code:'0T', name:'Ligero pollo al curry', price:10.5 }, { code:'0U', name:'Tallarines fritos gambas', price:8.5 }, { code:'0V', name:'Lenguado Zheng', price:10.5 } ] },
+            'T': { title:'Tabla Especial', items:[ { code:'0W', name:'Fen Black Cod', price:36 }, { code:'0X', name:'Contra de Wagyu nigiri', price:28 }, { code:'0Y', name:'Fui Godengeo', price:36 } ] },
+            'L': { title:'La Huerta Oriental', items:[ { code:'0Z', name:'Chana malasa', price:26 }, { code:'1A', name:'Faja vietnamita', price:34 }, { code:'1B', name:'Cap Cay', price:26 }, { code:'1C', name:'Fried Pakoras', price:34 } ] },
+            'G': { title:'Glam Makis & Rolls', items:[ { code:'1D', name:'French Maki', price:40 }, { code:'1E', name:'Chef Roll', price:32 }, { code:'1F', name:'Fai Maki', price:40 }, { code:'1G', name:'Caribbean Roll', price:32 } ] },
+            'D': { title:'Fin Glotón', items:[ { code:'1H', name:'Bokan mochi', price:6.5 }, { code:'1I', name:'Akanom', price:10.5 }, { code:'1J', name:'Ban Flan', price:6.5 }, { code:'1K', name:'Arasgula', price:10.5 } ] },
+            'C': { title:'Casa de Tartas', items:[ { code:'1L', name:'Asafron Rasmalaii', price:18.5 }, { code:'1M', name:'Banana Spring', price:14.5 }, { code:'1N', name:'Asakura Parfait', price:18.5 }, { code:'1O', name:'Black Sesame', price:14.5 } ] },
+            'B': { title:'Bebidas de Licor', items:[ { code:'1P', name:'Sake', price:14 }, { code:'1Q', name:'Meijiu', price:14 }, { code:'1R', name:'Feni', price:14 }, { code:'1S', name:'Bangla', price:14 }, { code:'1T', name:'Ya Dong', price:14 }, { code:'1U', name:'Basi', price:14 } ] },
+            'Z': { title:'Ancestral Té y Café', items:[ { code:'1V', name:'Te Macha', price:10 }, { code:'1W', name:'Te Negro Yunnan', price:10 }, { code:'1X', name:'Salabat', price:10 }, { code:'1Y', name:'Kopi Luwak', price:10 }, { code:'2A', name:'Cafe Turco', price:10 }, { code:'2B', name:'Siphon Cafe', price:10 } ] }
+        };
+
+        // Estado activo cargado desde localStorage o valores de fábrica
+        let categoriesGabip = JSON.parse(localStorage.getItem('custom_categories_gabip')) || JSON.parse(JSON.stringify(defaultCategoriesGabip));
+        let categoriesJutama = JSON.parse(localStorage.getItem('custom_categories_jutama')) || JSON.parse(JSON.stringify(defaultCategoriesJutama));
+        
+        let logoConfig = JSON.parse(localStorage.getItem('custom_logo_config')) || {
+            gabipMode: 'default', // 'default', 'text', 'upload'
+            jutamaMode: 'default',
+            gabipText: 'RESTAURANTE GABIP',
+            gabipSub: 'COCINA DE TEMPORADA',
+            jutamaText: 'JUTAMA ASIAN BISTRO',
+            jutamaSub: 'SPECIALTY FOOD',
+            lineOp: 'No Op.: Pendiente',
+            lineSala: 'Sala: 101      EMP: 1',
+            footerText: 'Gracias por su visita!',
+            gabipImgData: null,
+            jutamaImgData: null,
+            printDarkness: 8,       // Máximo negro — sin riesgo de brownout en S23
+            printSpeed: 'normal'    // 'fast' | 'normal' | 'safe'
+        };
+
+        // Aplicar configuración de calidad al arrancar
+        setPrintQuality(logoConfig.printDarkness || 8, logoConfig.printSpeed || 'normal');
+
+        // Diccionarios rápidos de platos
+        let itemLookupGabip = {}, itemLookupJutama = {};
+        function rebuildLookups() {
+            itemLookupGabip = {}; itemLookupJutama = {};
+            Object.values(categoriesGabip).forEach(cat => { cat.items.forEach(it => { itemLookupGabip[it.code] = it; }); });
+            Object.values(categoriesJutama).forEach(cat => { cat.items.forEach(it => { itemLookupJutama[it.code] = it; }); });
+        }
+        rebuildLookups();
+
+        // ==========================================
+        // CONTROL BLUETOOTH Y CHIVATO
+        // ==========================================
+        const bleStatusText = document.getElementById('bleStatusText');
+        const btnDecimal = document.getElementById('btnDecimal');
+
+        setPrinterStatusCallback((connected) => {
+            if (connected) {
+                bleStatusText.innerHTML = "🟢 Conectada";
+                bleStatusText.style.color = "#00ff00";
+                btnDecimal.innerText = "."; 
+            } else {
+                bleStatusText.innerHTML = "🔴 Desconectada (Tocar)";
+                bleStatusText.style.color = "#ff4444";
+                btnDecimal.innerText = ","; 
+            }
+        });
+
+        async function handleConnectClick() {
+            bleStatusText.innerHTML = "🟡 Conectando...";
+            bleStatusText.style.color = "#ff9f0a";
+            await connectPrinter();
+        }
+
+        // ==========================================
+        // GESTO SECRETO DE RECARGA (Pull down)
+        // ==========================================
+        let touchstartY = 0;
+        document.addEventListener('touchstart', e => { touchstartY = e.changedTouches[0].screenY; }, {passive: true});
+        document.addEventListener('touchend', e => {
+            let touchendY = e.changedTouches[0].screenY;
+            if (touchstartY < 150 && (touchendY - touchstartY > 150)) { window.location.reload(); }
+        }, {passive: true});
+
+        function goFullScreen() {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) { docEl.requestFullscreen().catch(()=>{}); }
+            else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); }
+        }
+
+        function launchComanda() { 
+            goFullScreen(); 
+            document.getElementById('main_portal').classList.add('hidden'); 
+            document.getElementById('comanda_container').classList.remove('hidden'); 
+        }
+
+        function launchCalc() { 
+            goFullScreen(); 
+            document.getElementById('main_portal').classList.add('hidden'); 
+            document.getElementById('calc_container').classList.remove('hidden'); 
+            if(!c_mNum) c_sel(0); 
+        }
+
+        // ==========================================
+        // CALCULADORA PRO (LÓGICA INTACTA)
+        // ==========================================
+        let c_activeIdx = 0;
+        let c_mNum = "", c_mLim = 0, c_opsCount = 0;
+        let c_current = "0", c_previous = "", c_activeOp = null, c_historyText = "";
+        let c_waitingForNewNumber = false, c_calcFinished = false; 
+
+        function c_sel(i) { 
+            c_activeIdx = i;
+            document.querySelectorAll('.calc-config-block').forEach((b,idx)=>b.classList.toggle('selected', idx==i));
+            c_mNum = document.getElementById('fn'+i).value;
+            c_mLim = parseInt(document.getElementById('ol'+i).value);
+        }
+
+        function c_start() {
+            goFullScreen();
+            c_mNum = document.getElementById('fn'+c_activeIdx).value;
+            c_mLim = parseInt(document.getElementById('ol'+c_activeIdx).value);
+            document.getElementById('calc_setup').classList.add('hidden');
+            document.getElementById('calc_app').classList.remove('hidden');
+        }
+
+        function c_format(n) { 
+            if (n === "0") return "0";
+            let parts = n.split('.'); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, "."); return parts.join(',');
+        }
+
+        function c_press(v) {
+            if (c_calcFinished) { c_current = v.toString(); c_historyText = ""; c_opsCount = 0; c_calcFinished = false; c_waitingForNewNumber = false; } 
+            else if (c_waitingForNewNumber) { c_current = v.toString(); c_waitingForNewNumber = false; } 
+            else { c_current = (c_current === "0") ? v.toString() : c_current + v.toString(); }
+            c_update();
+        }
+
+        function c_handleOp(op) {
+            let sym = (op=='*')?'×':(op=='/')?'÷':(op=='-')?'−':op;
+            if (c_calcFinished) {
+                if (c_historyText.endsWith("=")) { c_historyText = c_historyText.slice(0, -1) + sym; } else { c_historyText = c_current + sym; }
+                c_previous = c_current; c_activeOp = op; c_calcFinished = false; c_waitingForNewNumber = true; c_update(); return;
+            }
+            if (c_waitingForNewNumber) { if (c_historyText.length > 0) { c_historyText = c_historyText.slice(0, -1) + sym; } c_activeOp = op; c_update(); return; }
+            c_historyText += c_current + sym;
+            if (c_activeOp !== null) {
+                c_opsCount++; 
+                if (c_opsCount >= c_mLim) { c_current = c_mNum; } else {
+                    let a = parseFloat(c_previous), b = parseFloat(c_current), res = 0;
+                    if (c_activeOp == '+') res = a + b; if (c_activeOp == '-') res = a - b;
+                    if (c_activeOp == '*') res = a * b; if (c_activeOp == '/') res = a / b;
+                    c_current = parseFloat(res.toFixed(8)).toString();
+                }
+            }
+            c_previous = c_current; c_activeOp = op; c_waitingForNewNumber = true; c_update();
+        }
+
+        function c_handleEqual() {
+            if (!c_activeOp || c_waitingForNewNumber || c_calcFinished) return;
+            c_historyText += c_current + "="; c_opsCount++; 
+            if (c_opsCount >= c_mLim) { c_current = c_mNum; } else {
+                let a = parseFloat(c_previous), b = parseFloat(c_current), res = 0;
+                if (c_activeOp == '+') res = a + b; if (c_activeOp == '-') res = a - b;
+                if (c_activeOp == '*') res = a * b; if (c_activeOp == '/') res = a / b;
+                c_current = parseFloat(res.toFixed(8)).toString();
+            }
+            c_activeOp = null; c_waitingForNewNumber = true; c_calcFinished = true; c_update();
+        }
+
+        function c_backspace() {
+            if (c_calcFinished) { c_reset(); return; }
+            if (c_waitingForNewNumber) { c_current = "0"; c_update(); return; }
+            if (c_current !== "0") {
+                c_current = c_current.slice(0, -1);
+                if (c_current === "" || c_current === "-") { c_current = "0"; }
+                c_update();
+            } else { c_reset(); }
+        }
+
+        function c_reset() { c_current="0"; c_previous=""; c_activeOp=null; c_historyText=""; c_opsCount=0; c_waitingForNewNumber=false; c_calcFinished=false; c_update(); }
+        function c_update() { document.getElementById('calc_display').innerText = c_format(c_current); document.getElementById('calc_history').innerText = c_historyText; let d = document.getElementById('calc_display'); d.style.fontSize = c_current.length > 7 ? "3.5rem" : "5.5rem"; }
+
+        // ==========================================
+        // COMANDA MÁGICA
+        // ==========================================
+        const prn_selector = document.getElementById('prn_selector');
+        const selTitle = document.getElementById('selTitle');
+        const cartaTitle = document.getElementById('cartaTitle');
+        const btnIOS = document.getElementById('btnIOS');
+        const btnAndroid = document.getElementById('btnAndroid');
+        const btnGabip = document.getElementById('btnGabip');
+        const btnJutama = document.getElementById('btnJutama');
+        const btnBack = document.getElementById('btnBack');
+        const timeWrapper = document.getElementById('timeWrapper'); 
+        const delaySelect = document.getElementById('delaySelect'); 
+        const prn_app = document.getElementById('prn_app');
+        const prn_display = document.getElementById('prn_display');
+        const statusWrapper = document.getElementById('statusWrapper');
+        const prn_menu = document.getElementById('prn_menu');
+        const prn_menuTitle = document.getElementById('prn_menuTitle');
+        const prn_menuList = document.getElementById('prn_menuList');
+
+        function showStep2() { 
+            btnIOS.classList.add('hidden'); btnAndroid.classList.add('hidden'); 
+            selTitle.classList.add('hidden'); statusWrapper.classList.add('hidden'); 
+            cartaTitle.classList.remove('hidden'); btnGabip.classList.remove('hidden'); btnJutama.classList.remove('hidden'); 
+            timeWrapper.classList.remove('hidden'); btnBack.classList.remove('hidden'); 
+        }
+
+        function goBackToStep1() { 
+            cartaTitle.classList.add('hidden'); btnGabip.classList.add('hidden'); btnJutama.classList.add('hidden'); 
+            timeWrapper.classList.add('hidden'); btnBack.classList.add('hidden'); 
+            btnIOS.classList.remove('hidden'); btnAndroid.classList.remove('hidden'); 
+            selTitle.classList.remove('hidden'); statusWrapper.classList.remove('hidden'); 
+            document.getElementById('comanda_container').className = ''; 
+        }
+
+        function exitCalculator() { 
+            prn_app.classList.add('hidden'); prn_selector.classList.remove('hidden'); 
+            total = 0; codeString = ""; historyStack = []; prn_display.textContent = "0"; closeMenu(); step = 0; 
+        }
+
+        btnIOS.onclick = () => { document.getElementById('comanda_container').classList.add('ios'); showStep2(); };
+        btnAndroid.onclick = () => { document.getElementById('comanda_container').classList.add('android'); showStep2(); };
+        btnBack.onclick = () => { goBackToStep1(); };
+
+        let selectedCarta = 'gabip';
+        let categories = categoriesGabip;
+
+        btnGabip.onclick = async () => { 
+            selectedCarta = 'gabip'; categories = categoriesGabip; 
+            prn_selector.classList.add('hidden'); prn_app.classList.remove('hidden'); 
+            if (!printerConnected) { await connectPrinter(); }
+        };
+        btnJutama.onclick = async () => { 
+            selectedCarta = 'jutama'; categories = categoriesJutama; 
+            prn_selector.classList.add('hidden'); prn_app.classList.remove('hidden'); 
+            if (!printerConnected) { await connectPrinter(); }
+        };
+
+        let total = 0, currentCat = null, menuOpen = false, selectedIdx = -1, codeString = "", step = 0;
+        let historyStack = [], nextMenuTimer = null; 
+
+        function openCategory(letter){
+            const cat = categories[letter]; if (!cat) return;
+            currentCat = letter; selectedIdx = -1; prn_menuTitle.textContent = cat.title; prn_menuList.innerHTML = '';
+            cat.items.forEach((it,i)=>{
+                const row = document.createElement('div'); row.textContent = (i+1)+'. '+it.name+' — '+it.price+'€';
+                row.onclick = ()=>{ [...prn_menuList.children].forEach(el=>el.classList.remove('sel')); row.classList.add('sel'); selectedIdx = i; };
+                prn_menuList.appendChild(row);
+            });
+            prn_menu.classList.remove('hidden'); menuOpen = true;
+        }
+
+        function closeMenu(){ prn_menu.classList.add('hidden'); menuOpen = false; selectedIdx = -1; }
+
+        document.getElementById('secret').onclick = ()=>{ if(!menuOpen) openCategory('A'); step = 1; };
+
+        document.getElementById('ac').onclick = ()=>{
+            total = 0; codeString = ""; historyStack = []; if (nextMenuTimer) clearTimeout(nextMenuTimer);
+            prn_display.textContent = "0"; closeMenu(); currentCat = null; step = 0;
+        };
+
+        btnDecimal.onclick = () => {
+            if (historyStack.length === 0) { exitCalculator(); return; }
+            if (nextMenuTimer) { clearTimeout(nextMenuTimer); nextMenuTimer = null; }
+            const lastState = historyStack.pop();
+            total = lastState.total; codeString = lastState.codeString; step = lastState.step;
+            prn_display.textContent = total === 0 ? "0" : total.toFixed(3).replace(/\.?0+$/, '');
+            if (lastState.cat) openCategory(lastState.cat);
+        };
+
+        document.getElementById('plus').onclick = ()=>{
+            if (!menuOpen || currentCat === null) return;
+            const cat = categories[currentCat]; if (!cat || selectedIdx < 0) return;
+            const item = cat.items[selectedIdx];
+            historyStack.push({ total: total, codeString: codeString, step: step, cat: currentCat });
+            total += Number(item.price); prn_display.textContent = total.toFixed(3).replace(/\.?0+$/, '');
+            if (item.code) codeString += item.code;
+            const normalized = item.name.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            const firstLetter = normalized.charAt(0).toUpperCase();
+
+            let nextCat = null; const oldStep = step;
+            switch (oldStep) {
+                case 1: if (firstLetter === 'F') nextCat = 'F'; else if (firstLetter === 'H') nextCat = 'H'; else if (firstLetter === 'S') nextCat = 'S'; else if (firstLetter === 'P') nextCat = 'P'; step = 2; break;
+                case 2: if (firstLetter === 'G') nextCat = 'G'; else if (firstLetter === 'T') nextCat = 'T'; else if (firstLetter === 'L') nextCat = 'L'; step = 3; break;
+                case 3: if (firstLetter === 'F') nextCat = 'D'; else if (firstLetter === 'C') nextCat = 'C'; step = 4; break;
+                case 4: if (firstLetter === 'B') nextCat = 'B'; else if (firstLetter === 'A') nextCat = 'Z'; step = 5; break;
+                case 5: nextCat = null; step = 0; break;
+                default: nextCat = null; step = 0; break;
+            }
+            closeMenu();
+            if (oldStep === 5 || !nextCat) { sendForPrint(); return; }
+            const delayMs = (nextCat === 'B' || nextCat === 'Z') ? 300 : parseInt(delaySelect.value);
+            nextMenuTimer = setTimeout(()=>openCategory(nextCat), delayMs);
+        };
+
+        // ==========================================
+        // ENVÍO DE IMPRESIÓN CON LOGO DINÁMICO
+        // ==========================================
+        async function getActiveCustomLogo(carta) {
+            const mode = (carta === 'jutama') ? logoConfig.jutamaMode : logoConfig.gabipMode;
+            if (mode === 'default') return null;
+
+            // Generar desde canvas dinámico
+            const canvas = document.getElementById('logoGenCanvas');
+            renderLogoToCanvas(carta, canvas);
+            return canvasTo1BitRaster(canvas);
+        }
+
+        async function sendForPrint(){
+            const lookup = (selectedCarta === 'jutama') ? itemLookupJutama : itemLookupGabip;
+            const customLogo = await getActiveCustomLogo(selectedCarta);
+
+            const options = {
+                customLogo: customLogo,
+                headerLineOp: logoConfig.lineOp,
+                headerLineSala: logoConfig.lineSala,
+                footerText: logoConfig.footerText
+            };
+
+            const ok = await printReceiptV2(selectedCarta, codeString, lookup, options);
+
+            if (ok) {
+                total = 0; codeString = ""; historyStack = []; step = 0;
+                prn_display.textContent = "0";
+                if ("vibrate" in navigator) { try { navigator.vibrate(200); } catch(e){} }
+            } else {
+                if ("vibrate" in navigator) { try { navigator.vibrate([100, 50, 100, 50, 100]); } catch(err){} }
+            }
+        }
+
+        // =========================================================================
+        // MOTOR DEL EDITOR DE MENÚS, LOGOS Y PREVISUALIZADOR
+        // =========================================================================
+        let currentTab = 'gabip';
+
+        function openEditor() {
+            goFullScreen();
+            document.getElementById('main_portal').classList.add('hidden');
+            document.getElementById('editor_container').classList.remove('hidden');
+            switchEditorTab(currentTab);
+        }
+
+        function closeEditor() {
+            document.getElementById('editor_container').classList.add('hidden');
+            document.getElementById('main_portal').classList.remove('hidden');
+        }
+
+        function switchEditorTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab_' + tab).classList.add('active');
+
+            const body = document.getElementById('editor_body');
+            body.innerHTML = '';
+
+            if (tab === 'gabip') {
+                renderMenuEditor(categoriesGabip, 'gabip', body);
+            } else if (tab === 'jutama') {
+                renderMenuEditor(categoriesJutama, 'jutama', body);
+            } else if (tab === 'logos') {
+                renderLogosEditor(body);
+            } else if (tab === 'ticket') {
+                renderTicketPreview(body);
+            }
+        }
+
+        function renderMenuEditor(cats, type, container) {
+            let html = `<div style="margin-bottom:12px; font-size:0.85rem; color:#aaa;">Edita los platos y precios. El forzaje mágico sigue funcionando con exactitud. Máximo 28 caracteres recomendados por línea.</div>`;
+            
+            for (const [catKey, cat] of Object.entries(cats)) {
+                html += `<div class="cat-group">
+                    <div class="cat-title-edit">${cat.title} (Paso ${catKey})</div>`;
+                
+                cat.items.forEach((item, idx) => {
+                    const charCount = item.name.length;
+                    const warnClass = charCount > 28 ? 'warning' : '';
+                    const note = charCount > 28 ? ' (Se imprimirá en 2 líneas)' : '';
+                    
+                    html += `<div class="dish-row">
+                        <div class="dish-header-row">
+                            <span>Código: <b>${item.code}</b></span>
+                            <span class="char-counter ${warnClass}" id="cnt_${type}_${catKey}_${idx}">${charCount}/28 letras${note}</span>
+                        </div>
+                        <div class="dish-inputs">
+                            <input type="text" value="${item.name.replace(/"/g, '&quot;')}" 
+                                id="name_${type}_${catKey}_${idx}"
+                                oninput="handleDishNameChange('${type}', '${catKey}', ${idx}, this.value)">
+                            <input type="number" step="0.5" value="${item.price}" 
+                                id="price_${type}_${catKey}_${idx}"
+                                oninput="handleDishPriceChange('${type}', '${catKey}', ${idx}, this.value)">
+                            <span style="color:#aaa; font-weight:bold;">€</span>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function handleDishNameChange(type, catKey, idx, val) {
+            const cats = (type === 'gabip') ? categoriesGabip : categoriesJutama;
+            cats[catKey].items[idx].name = val;
+            
+            const counterEl = document.getElementById(`cnt_${type}_${catKey}_${idx}`);
+            if (counterEl) {
+                const len = val.length;
+                counterEl.innerText = len > 28 ? `${len}/28 letras (2 líneas)` : `${len}/28 letras`;
+                counterEl.classList.toggle('warning', len > 28);
+            }
+        }
+
+        function handleDishPriceChange(type, catKey, idx, val) {
+            const cats = (type === 'gabip') ? categoriesGabip : categoriesJutama;
+            cats[catKey].items[idx].price = parseFloat(val) || 0;
+        }
+
+        function renderLogosEditor(container) {
+            container.innerHTML = `
+                <div class="cat-group">
+                    <div class="cat-title-edit">Logotipo Carta Gabip</div>
+                    <div class="logo-mode-selector">
+                        <div class="logo-mode-btn ${logoConfig.gabipMode==='default'?'active':''}" onclick="setLogoMode('gabip','default')">Original</div>
+                        <div class="logo-mode-btn ${logoConfig.gabipMode==='text'?'active':''}" onclick="setLogoMode('gabip','text')">Texto / Nombre</div>
+                        <div class="logo-mode-btn ${logoConfig.gabipMode==='upload'?'active':''}" onclick="setLogoMode('gabip','upload')">Subir Foto</div>
+                    </div>
+                    ${logoConfig.gabipMode === 'text' ? `
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <label style="font-size:0.8rem; color:#aaa;">Nombre del Restaurante:</label>
+                            <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                                value="${logoConfig.gabipText}" oninput="logoConfig.gabipText=this.value; updateLogoCanvas('gabip')">
+                            <label style="font-size:0.8rem; color:#aaa;">Subtítulo / Especialidad:</label>
+                            <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                                value="${logoConfig.gabipSub}" oninput="logoConfig.gabipSub=this.value; updateLogoCanvas('gabip')">
+                        </div>
+                    ` : ''}
+                    ${logoConfig.gabipMode === 'upload' ? `
+                        <input type="file" accept="image/*" onchange="handleImageUpload('gabip', this.files[0])" style="margin-top:5px; color:#aaa;">
+                    ` : ''}
+                    <div class="logo-preview-box">
+                        <canvas id="previewCanvas_gabip" width="384" height="150" class="logo-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="cat-group">
+                    <div class="cat-title-edit">Logotipo Carta Jutama</div>
+                    <div class="logo-mode-selector">
+                        <div class="logo-mode-btn ${logoConfig.jutamaMode==='default'?'active':''}" onclick="setLogoMode('jutama','default')">Original</div>
+                        <div class="logo-mode-btn ${logoConfig.jutamaMode==='text'?'active':''}" onclick="setLogoMode('jutama','text')">Texto / Nombre</div>
+                        <div class="logo-mode-btn ${logoConfig.jutamaMode==='upload'?'active':''}" onclick="setLogoMode('jutama','upload')">Subir Foto</div>
+                    </div>
+                    ${logoConfig.jutamaMode === 'text' ? `
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <label style="font-size:0.8rem; color:#aaa;">Nombre del Restaurante:</label>
+                            <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                                value="${logoConfig.jutamaText}" oninput="logoConfig.jutamaText=this.value; updateLogoCanvas('jutama')">
+                            <label style="font-size:0.8rem; color:#aaa;">Subtítulo / Especialidad:</label>
+                            <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                                value="${logoConfig.jutamaSub}" oninput="logoConfig.jutamaSub=this.value; updateLogoCanvas('jutama')">
+                        </div>
+                    ` : ''}
+                    ${logoConfig.jutamaMode === 'upload' ? `
+                        <input type="file" accept="image/*" onchange="handleImageUpload('jutama', this.files[0])" style="margin-top:5px; color:#aaa;">
+                    ` : ''}
+                    <div class="logo-preview-box">
+                        <canvas id="previewCanvas_jutama" width="384" height="150" class="logo-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="cat-group">
+                    <div class="cat-title-edit">Textos del Ticket</div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label style="font-size:0.8rem; color:#aaa;">Línea Operación:</label>
+                        <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                            value="${logoConfig.lineOp}" oninput="logoConfig.lineOp=this.value">
+                        <label style="font-size:0.8rem; color:#aaa;">Línea Sala / Empleado:</label>
+                        <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                            value="${logoConfig.lineSala}" oninput="logoConfig.lineSala=this.value">
+                        <label style="font-size:0.8rem; color:#aaa;">Pie de Página:</label>
+                        <input type="text" style="padding:10px; background:#000; border:1px solid #555; border-radius:8px; color:#fff;" 
+                            value="${logoConfig.footerText}" oninput="logoConfig.footerText=this.value">
+                    </div>
+                </div>
+
+                <div class="cat-group">
+                    <div class="cat-title-edit">🖨️ Calidad de Impresión</div>
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+
+                        <div>
+                            <label style="font-size:0.85rem; color:#aaa; display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <span>Oscuridad del texto:</span>
+                                <span id="darknessLabel" style="color:#ff9f0a; font-weight:bold;">${logoConfig.printDarkness || 8} / 8</span>
+                            </label>
+                            <input type="range" min="1" max="8" step="1"
+                                value="${logoConfig.printDarkness || 8}"
+                                style="width:100%; accent-color:#ff9f0a;"
+                                oninput="logoConfig.printDarkness=parseInt(this.value); document.getElementById('darknessLabel').innerText=this.value+' / 8'">
+                            <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:#555; margin-top:4px;">
+                                <span>💧 Muy claro</span>
+                                <span>Normal (4)</span>
+                                <span>⬛ Máximo negro</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-size:0.85rem; color:#aaa; display:block; margin-bottom:8px;">Velocidad de impresión:</label>
+                            <div style="display:flex; gap:8px;">
+                                <div class="logo-mode-btn ${(logoConfig.printSpeed||'normal')==='fast'?'active':''}"
+                                     onclick="logoConfig.printSpeed='fast'; document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active');"
+                                     style="font-size:0.8rem;">
+                                    ⚡ Rápida<br><span style="font-size:0.7rem; opacity:0.7;">Mayor riesgo</span>
+                                </div>
+                                <div class="logo-mode-btn ${(logoConfig.printSpeed||'normal')==='normal'?'active':''}"
+                                     onclick="logoConfig.printSpeed='normal'; document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active');"
+                                     style="font-size:0.8rem;">
+                                    🟡 Normal<br><span style="font-size:0.7rem; opacity:0.7;">Recomendada</span>
+                                </div>
+                                <div class="logo-mode-btn ${(logoConfig.printSpeed||'normal')==='safe'?'active':''}"
+                                     onclick="logoConfig.printSpeed='safe'; document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active');"
+                                     style="font-size:0.8rem;">
+                                    🔋 Segura<br><span style="font-size:0.7rem; opacity:0.7;">Batería baja</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:8px; font-size:0.75rem; color:#555; line-height:1.4;">
+                                ⚡ Rápida: tickets en ~6 s · 🟡 Normal: ~9 s · 🔋 Segura: ~15 s (recomendada si la batería está baja)
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+            setTimeout(() => {
+                updateLogoCanvas('gabip');
+                updateLogoCanvas('jutama');
+            }, 50);
+        }
+
+        function setLogoMode(carta, mode) {
+            if (carta === 'gabip') logoConfig.gabipMode = mode;
+            else logoConfig.jutamaMode = mode;
+            switchEditorTab('logos');
+        }
+
+        function handleImageUpload(carta, file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 384;
+                    canvas.height = 150;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 384, 150);
+
+                    // Escalar ajustando a proporción
+                    const scale = Math.min(384 / img.width, 150 / img.height);
+                    const nw = img.width * scale;
+                    const nh = img.height * scale;
+                    ctx.drawImage(img, (384 - nw) / 2, (150 - nh) / 2, nw, nh);
+
+                    // Binarizar en blanco y negro puro
+                    const imgData = ctx.getImageData(0, 0, 384, 150);
+                    const d = imgData.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const lum = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114);
+                        const v = (d[i+3] > 100 && lum < 140) ? 0 : 255;
+                        d[i] = v; d[i+1] = v; d[i+2] = v; d[i+3] = 255;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+
+                    if (carta === 'gabip') logoConfig.gabipImgData = canvas.toDataURL();
+                    else logoConfig.jutamaImgData = canvas.toDataURL();
+
+                    updateLogoCanvas(carta);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderLogoToCanvas(carta, canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 384, 150);
+
+            const mode = (carta === 'jutama') ? logoConfig.jutamaMode : logoConfig.gabipMode;
+
+            if (mode === 'default') {
+                // Dibujar bitmap original usando un canvas temporal
+                const wBytes = (carta === 'jutama') ? LOGO_JUTAMA_WIDTH_BYTES : LOGO_GABIP_WIDTH_BYTES;
+                const h = (carta === 'jutama') ? LOGO_JUTAMA_HEIGHT : LOGO_GABIP_HEIGHT;
+                const data = (carta === 'jutama') ? logo_jutama_bitmap : logo_gabip_bitmap;
+                const imgData = ctx.createImageData(384, 150);
+                for (let y = 0; y < h; y++) {
+                    for (let bx = 0; bx < wBytes; bx++) {
+                        const b = data[y * wBytes + bx];
+                        for (let bit = 0; bit < 8; bit++) {
+                            const x = bx * 8 + bit;
+                            const idx = (y * 384 + x) * 4;
+                            const isBlack = (b & (1 << (7 - bit))) !== 0;
+                            const val = isBlack ? 0 : 255;
+                            imgData.data[idx] = val;
+                            imgData.data[idx+1] = val;
+                            imgData.data[idx+2] = val;
+                            imgData.data[idx+3] = 255;
+                        }
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+            } else if (mode === 'text') {
+                const title = (carta === 'jutama') ? logoConfig.jutamaText : logoConfig.gabipText;
+                const sub = (carta === 'jutama') ? logoConfig.jutamaSub : logoConfig.gabipSub;
+
+                // Marco exterior clásico
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(10, 10, 364, 130);
+                ctx.lineWidth = 1;
+                ctx.strokeRect(16, 16, 352, 118);
+
+                // Texto principal
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 24px "Courier New", Georgia, serif';
+                ctx.fillText(title.toUpperCase(), 192, 70);
+
+                // Filete decorativo
+                ctx.beginPath();
+                ctx.moveTo(70, 85); ctx.lineTo(314, 85);
+                ctx.stroke();
+
+                // Subtítulo
+                ctx.font = '14px Arial, sans-serif';
+                ctx.fillText(sub.toUpperCase(), 192, 108);
+            } else if (mode === 'upload') {
+                const imgUrl = (carta === 'jutama') ? logoConfig.jutamaImgData : logoConfig.gabipImgData;
+                if (imgUrl) {
+                    const img = new Image();
+                    img.src = imgUrl;
+                    ctx.drawImage(img, 0, 0);
+                } else {
+                    ctx.fillStyle = '#666';
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Sin imagen cargada. Toca "Subir Foto"', 192, 80);
+                }
+            }
+        }
+
+        function updateLogoCanvas(carta) {
+            const canvas = document.getElementById('previewCanvas_' + carta);
+            if (canvas) renderLogoToCanvas(carta, canvas);
+        }
+
+        function canvasTo1BitRaster(canvas) {
+            const ctx = canvas.getContext('2d');
+            const w = 384;
+            const h = canvas.height;
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            const widthBytes = 48;
+            const raster = new Uint8Array(widthBytes * h);
+
+            for (let y = 0; y < h; y++) {
+                for (let bx = 0; bx < widthBytes; bx++) {
+                    let byteVal = 0;
+                    for (let bit = 0; bit < 8; bit++) {
+                        const x = bx * 8 + bit;
+                        const idx = (y * w + x) * 4;
+                        const lum = (d[idx] * 0.299 + d[idx+1] * 0.587 + d[idx+2] * 0.114);
+                        if (d[idx+3] > 100 && lum < 140) {
+                            byteVal |= (1 << (7 - bit));
+                        }
+                    }
+                    raster[y * widthBytes + bx] = byteVal;
+                }
+            }
+            return { widthBytes, height: h, data: raster };
+        }
+
+        // ==========================================
+        // VISTA PREVIA DEL TICKET TÉRMICO
+        // ==========================================
+        function renderTicketPreview(container) {
+            // Generar logo en canvas temporal para extraer DataURL
+            const canvas = document.getElementById('logoGenCanvas');
+            renderLogoToCanvas('gabip', canvas);
+            const logoDataUrl = canvas.toDataURL();
+
+            // Simular un ticket de ejemplo con platos de la carta activa
+            const demoItems = [
+                categoriesGabip['A'].items[0],
+                categoriesGabip['F'].items[0],
+                categoriesGabip['G'].items[0],
+                categoriesGabip['D'].items[0]
+            ];
+
+            let subtotal = 0;
+            let rowsHtml = '';
+            demoItems.forEach(it => {
+                subtotal += it.price;
+                const pStr = it.price.toFixed(2).replace('.', ',') + ' e';
+                const name = it.name;
+                
+                if (name.length <= 28) {
+                    const spaces = Math.max(0, 28 - pStr.length);
+                    rowsHtml += `<div>1 x ${name}</div><div style="text-align:right;">${pStr}</div>`;
+                } else {
+                    const l1 = name.substring(0, 28);
+                    const l2 = name.substring(28);
+                    rowsHtml += `<div>1 x ${l1}</div><div style="padding-left:24px;">${l2}</div><div style="text-align:right;">${pStr}</div>`;
+                }
+            });
+
+            const totStr = subtotal.toFixed(2).replace('.', ',') + ' EUR';
+
+            container.innerHTML = `
+                <div style="text-align:center; font-size:0.85rem; color:#aaa; margin-bottom:10px;">
+                    Vista previa exacta del ticket térmico de 58 mm:
+                </div>
+                <div class="ticket-preview">
+                    <img src="${logoDataUrl}" class="ticket-preview-logo">
+                    <div style="text-align:center;">--------------------------------</div>
+                    <div>${logoConfig.lineOp}</div>
+                    <div>${logoConfig.lineSala}</div>
+                    <div style="text-align:center;">--------------------------------</div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span>Uds PRODUCTO</span>
+                        <span>TOTAL</span>
+                    </div>
+                    <div style="text-align:center;">--------------------------------</div>
+                    <div style="margin: 6px 0;">${rowsHtml}</div>
+                    <div style="text-align:center;">--------------------------------</div>
+                    <div style="font-weight:bold; font-size:1.1rem; display:flex; justify-content:space-between; margin:8px 0;">
+                        <span>TOTAL:</span>
+                        <span>${totStr}</span>
+                    </div>
+                    <div style="text-align:center; margin-top:10px;">${logoConfig.footerText}</div>
+                </div>
+                <button onclick="testPrintDemo()" style="width:100%; max-width:320px; display:block; margin:15px auto; padding:12px; background:#27ae60; border:none; border-radius:10px; color:#fff; font-weight:bold; cursor:pointer;">
+                    🖨️ Imprimir Ticket de Prueba por Bluetooth
+                </button>
+            `;
+        }
+
+        async function testPrintDemo() {
+            if (!printerConnected) {
+                alert("Primero vincula la PeriPage desde el portal tocando el botón de Bluetooth.");
+                return;
+            }
+            // Envía los 4 platos demo
+            await printReceiptV2('gabip', '0A0G1D1H', itemLookupGabip, {
+                customLogo: await getActiveCustomLogo('gabip'),
+                headerLineOp: logoConfig.lineOp,
+                headerLineSala: logoConfig.lineSala,
+                footerText: logoConfig.footerText
+            });
+        }
+
+        // ==========================================
+        // GUARDAR Y RESTABLECER
+        // ==========================================
+        function saveEditorChanges() {
+            localStorage.setItem('custom_categories_gabip', JSON.stringify(categoriesGabip));
+            localStorage.setItem('custom_categories_jutama', JSON.stringify(categoriesJutama));
+            localStorage.setItem('custom_logo_config', JSON.stringify(logoConfig));
+            rebuildLookups();
+            // Aplica los nuevos ajustes de calidad al driver inmediatamente
+            setPrintQuality(logoConfig.printDarkness || 8, logoConfig.printSpeed || 'normal');
+            alert("✅ ¡Cambios guardados con éxito en la memoria del teléfono!");
+        }
+
+        function confirmResetDefaults() {
+            if (confirm("¿Seguro que quieres restablecer todos los menús, precios, logotipos y calidad de impresión a los valores originales de fábrica?")) {
+                localStorage.removeItem('custom_categories_gabip');
+                localStorage.removeItem('custom_categories_jutama');
+                localStorage.removeItem('custom_logo_config');
+                categoriesGabip  = JSON.parse(JSON.stringify(defaultCategoriesGabip));
+                categoriesJutama = JSON.parse(JSON.stringify(defaultCategoriesJutama));
+                logoConfig = {
+                    gabipMode: 'default',
+                    jutamaMode: 'default',
+                    gabipText: 'RESTAURANTE GABIP',
+                    gabipSub: 'COCINA DE TEMPORADA',
+                    jutamaText: 'JUTAMA ASIAN BISTRO',
+                    jutamaSub: 'SPECIALTY FOOD',
+                    lineOp: 'No Op.: Pendiente',
+                    lineSala: 'Sala: 101      EMP: 1',
+                    footerText: 'Gracias por su visita!',
+                    gabipImgData: null,
+                    jutamaImgData: null,
+                    printDarkness: 8,
+                    printSpeed: 'normal'
+                };
+                rebuildLookups();
+                setPrintQuality(8, 'normal');
+                switchEditorTab(currentTab);
+                alert("🔄 Restaurado a valores originales.");
+            }
+        }
+    </script>
+</body>
+</html>
