@@ -15,18 +15,26 @@ let onPrinterStatusChangeCallback = null;
 // ---------------------------------------------------------
 // AJUSTES DE CALIDAD DE IMPRESIÓN (Configurables desde el Editor)
 // Oscuridad : 1=muy claro · 3=claro · 4=normal · 6=oscuro · 8=máximo negro
-// Sin ESP32 no hay riesgo de brownout → máximo negro por defecto
+//
+// IMPORTANTE — Lógica de delays para la PeriPage A6:
+//   El motor de papel avanza a velocidad constante. Si los datos BLE llegan
+//   más despacio que el avance del papel, el cabezal imprime líneas en blanco.
+//   → Los delays entre CHUNKS deben ser MÍNIMOS para mantener el buffer lleno.
+//   → El delay entre BLOQUES sincroniza con el mecanismo físico de impresión.
+//   → Más delay entre chunks = PEOR calidad (papel se adelanta a los datos).
 // ---------------------------------------------------------
-let printDarkness = 8;        // ← MÁXIMO NEGRO (sin limitación de hardware)
-let chunkDelayMs  = 10;   // Entre paquetes de 20 bytes (imagen)
-let blockDelayMs  = 25;   // Entre bloques de 24 líneas
-let fontDelayMs   = 8;    // Entre paquetes de texto
+let printDarkness = 8;      // MÁXIMO NEGRO por defecto
+let chunkDelayMs  = 2;      // Entre paquetes de 20 bytes — mínimo BLE seguro
+let blockDelayMs  = 50;     // Entre bloques de 24 líneas — sincroniza con papel
+let fontDelayMs   = 2;      // Entre paquetes de texto
 
 function setPrintQuality(darkness, speed) {
     printDarkness = Math.max(1, Math.min(8, Math.round(Number(darkness))));
-    if (speed === 'fast')      { chunkDelayMs = 5;  blockDelayMs = 15; fontDelayMs = 4;  }
-    else if (speed === 'safe') { chunkDelayMs = 18; blockDelayMs = 45; fontDelayMs = 14; }
-    else                       { chunkDelayMs = 10; blockDelayMs = 25; fontDelayMs = 8;  }
+    // chunk delay mínimo = datos llegan rápido, buffer lleno, sin líneas en blanco
+    // block delay mayor = tiempo para que el cabezal procese el bloque completo
+    if (speed === 'fast')      { chunkDelayMs = 1;  blockDelayMs = 35; fontDelayMs = 1; }
+    else if (speed === 'safe') { chunkDelayMs = 3;  blockDelayMs = 80; fontDelayMs = 3; }
+    else                       { chunkDelayMs = 2;  blockDelayMs = 50; fontDelayMs = 2; }
 }
 
 function setPrinterStatusCallback(cb) {
@@ -106,74 +114,74 @@ async function applyPrintDarkness() {
 }
 
 // ---------------------------------------------------------
-// 3. MOTOR GRÁFICO TÉRMICO (con tiempos configurables)
+// 3. MOTOR GRÁFICO TÉRMICO — CABECERA ÚNICA + STREAM CONTINUO
+//
+// En lugar de dividir en bloques de 24 líneas con cabeceras repetidas,
+// enviamos UN SOLO comando GS v 0 para toda la imagen y transmitimos
+// los datos en flujo continuo. Así la impresora nunca recibe una pausa
+// inesperada dentro de la imagen → sin líneas en blanco.
+//
+// El único delay artificial está ENTRE CHUNKS (mínimo BLE) y una pausa
+// FINAL calculada para que el mecanismo físico termine de imprimir.
 // ---------------------------------------------------------
 async function printRasterImage(data, widthBytes, height) {
     if (!bleCharacteristic || !bleDevice || !bleDevice.gatt.connected) return false;
 
-    const linesPerBlock = 24;
-    for (let blockStart = 0; blockStart < height; blockStart += linesPerBlock) {
+    // Una sola cabecera GS v 0 para toda la imagen
+    const header = new Uint8Array([
+        0x1D, 0x76, 0x30, 0x00,
+        widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
+        height & 0xFF,     (height >> 8) & 0xFF
+    ]);
+    await writeBLEChunk(header);
+    await sleep(10); // breve pausa para que la impresora procese la cabecera
+
+    // Stream continuo de todos los bytes de la imagen
+    const totalBytes = widthBytes * height;
+    for (let i = 0; i < totalBytes; i += 20) {
         if (!bleDevice.gatt.connected) return false;
-
-        const currentBlockHeight = (blockStart + linesPerBlock > height) ? height - blockStart : linesPerBlock;
-        const header = new Uint8Array([
-            0x1D, 0x76, 0x30, 0x00,
-            widthBytes & 0xFF, 0x00,
-            currentBlockHeight & 0xFF, 0x00
-        ]);
-        await writeBLEChunk(header);
-
-        const blockDataStart = blockStart * widthBytes;
-        const totalBytes = widthBytes * currentBlockHeight;
-
-        for (let i = 0; i < totalBytes; i += 20) {
-            if (!bleDevice.gatt.connected) return false;
-            const chunkSize = Math.min(20, totalBytes - i);
-            const chunk = data.subarray(blockDataStart + i, blockDataStart + i + chunkSize);
-            await writeBLEChunk(chunk);
-            await sleep(chunkDelayMs);   // <- Velocidad configurable
-        }
-        await sleep(blockDelayMs);       // <- Velocidad configurable
+        const chunkSize = Math.min(20, totalBytes - i);
+        await writeBLEChunk(data.subarray(i, i + chunkSize));
+        if (chunkDelayMs > 0) await sleep(chunkDelayMs);
     }
-    return true;
+
+    // Pausa final: tiempo estimado para que el mecanismo imprima las líneas
+    // ~4ms por línea a la velocidad normal de la PeriPage A6
+    const estimatedMs = Math.max(height * 4, blockDelayMs * Math.ceil(height / 24));
+    await sleep(estimatedMs);
+
+    return bleDevice.gatt.connected;
 }
 
 function convertToAscii(s) {
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// Pre-renderiza el texto en un buffer y lo envía como un único stream continuo
 async function imprimirTextoGrafico(texto, scale = 2, spacing = 25) {
     if (!bleCharacteristic || !bleDevice || !bleDevice.gatt.connected) return false;
 
     const asciiText = convertToAscii(texto);
     const len = asciiText.length;
     const pixelHeight = 8 * scale;
-    const pixelWidth = len * 6 * scale;
-    const widthBytes = Math.floor((pixelWidth + 7) / 8);
+    const pixelWidth  = len * 6 * scale;
+    const widthBytes  = Math.floor((pixelWidth + 7) / 8);
+    const totalBytes  = widthBytes * pixelHeight;
 
-    const header = new Uint8Array([
-        0x1D, 0x76, 0x30, 0x00,
-        widthBytes & 0xFF, 0x00,
-        pixelHeight & 0xFF, 0x00
-    ]);
-    await writeBLEChunk(header);
-
-    const bleChunk = new Uint8Array(20);
-    let chunkIdx = 0;
-
+    // Pre-renderizar todos los bytes en memoria antes de enviar
+    const imageBuffer = new Uint8Array(totalBytes);
+    let byteIdx = 0;
     for (let y = 0; y < pixelHeight; y++) {
         const yFont = Math.floor(y / scale);
         for (let bx = 0; bx < widthBytes; bx++) {
-            if (!bleDevice.gatt.connected) return false;
-
             let oneByte = 0;
             for (let bit = 0; bit < 8; bit++) {
                 const cx = bx * 8 + bit;
                 if (cx < pixelWidth) {
-                    const charIdx = Math.floor(Math.floor(cx / scale) / 6);
+                    const charIdx  = Math.floor(Math.floor(cx / scale) / 6);
                     const colInChar = Math.floor(cx / scale) % 6;
                     if (charIdx < len && colInChar < 5) {
-                        const code = asciiText.charCodeAt(charIdx);
+                        const code    = asciiText.charCodeAt(charIdx);
                         const fontCol = getFontCol(code - 32, colInChar);
                         if ((fontCol & (1 << yFont)) !== 0) {
                             oneByte |= (1 << (7 - bit));
@@ -181,21 +189,31 @@ async function imprimirTextoGrafico(texto, scale = 2, spacing = 25) {
                     }
                 }
             }
-            bleChunk[chunkIdx++] = oneByte;
-            if (chunkIdx >= 20) {
-                await writeBLEChunk(new Uint8Array(bleChunk));
-                chunkIdx = 0;
-                await sleep(fontDelayMs);  // <- Velocidad configurable
-            }
+            imageBuffer[byteIdx++] = oneByte;
         }
     }
 
-    if (chunkIdx > 0 && bleDevice.gatt.connected) {
-        await writeBLEChunk(bleChunk.subarray(0, chunkIdx));
+    // Enviar cabecera única
+    const header = new Uint8Array([
+        0x1D, 0x76, 0x30, 0x00,
+        widthBytes & 0xFF, 0x00,
+        pixelHeight & 0xFF, 0x00
+    ]);
+    await writeBLEChunk(header);
+    await sleep(5);
+
+    // Stream continuo del buffer pre-renderizado
+    for (let i = 0; i < totalBytes; i += 20) {
+        if (!bleDevice.gatt.connected) return false;
+        const chunkSize = Math.min(20, totalBytes - i);
+        await writeBLEChunk(imageBuffer.subarray(i, i + chunkSize));
+        if (fontDelayMs > 0) await sleep(fontDelayMs);
     }
+
+    // Avance de papel tras el texto
     if (spacing > 0 && bleDevice.gatt.connected) {
-        const feed = new Uint8Array([0x1B, 0x4A, spacing & 0xFF]);
-        await writeBLEChunk(feed);
+        await sleep(pixelHeight * 3); // espera proporcional a la altura del texto
+        await writeBLEChunk(new Uint8Array([0x1B, 0x4A, spacing & 0xFF]));
     }
     return bleDevice.gatt.connected;
 }
@@ -203,6 +221,7 @@ async function imprimirTextoGrafico(texto, scale = 2, spacing = 25) {
 async function printTextLine(texto, scale = 2, spacing = 25) {
     return await imprimirTextoGrafico(texto, scale, spacing);
 }
+
 
 // ---------------------------------------------------------
 // 4. IMPRESIÓN COMPLETA CON OSCURIDAD, LOGO Y SALTO DE LÍNEA
