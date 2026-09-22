@@ -1,4 +1,4 @@
-const CACHE_NAME = 'peripage-magic-v3';
+const CACHE_NAME = 'peripage-magic-v3.1';
 const ASSETS = [
     './',
     'index.html',
