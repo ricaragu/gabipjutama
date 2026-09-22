@@ -266,7 +266,7 @@ async function printReceiptV2(carta, code, itemLookup, options = {}) {
             if (item) {
                 const price    = Number(item.price);
                 const pStr     = price.toFixed(2).replace('.', ',');
-                const pStrConE = pStr + " e";
+                const pStrConE = pStr + " €";
                 const name     = convertToAscii(item.name);
 
                 if (name.length <= 28) {
@@ -295,7 +295,7 @@ async function printReceiptV2(carta, code, itemLookup, options = {}) {
         // 4. Total y pie
         if (!await printTextLine("--------------------------------", 2, 30)) return false;
         const totStr = totalVenta.toFixed(2).replace('.', ',');
-        if (!await printTextLine("TOTAL: " + totStr + " EUR", 3, 60)) return false;
+        if (!await printTextLine("TOTAL: " + totStr + " €", 3, 60)) return false;
 
         const footerText = options.footerText || "Gracias por su visita!";
         if (!await printTextLine(footerText, 2, 30)) return false;

@@ -1053,7 +1053,7 @@
             let rowsHtml = '';
             demoItems.forEach(it => {
                 subtotal += it.price;
-                const pStr = it.price.toFixed(2).replace('.', ',') + ' e';
+                const pStr = it.price.toFixed(2).replace('.', ',') + ' €';
                 const name = it.name;
                 
                 if (name.length <= 28) {
@@ -1066,7 +1066,7 @@
                 }
             });
 
-            const totStr = subtotal.toFixed(2).replace('.', ',') + ' EUR';
+            const totStr = subtotal.toFixed(2).replace('.', ',') + ' €';
 
             container.innerHTML = `
                 <div style="text-align:center; font-size:0.85rem; color:#aaa; margin-bottom:10px;">
