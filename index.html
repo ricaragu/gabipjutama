@@ -598,6 +598,8 @@
             prn_menu.classList.remove('hidden'); menuOpen = true;
         }
 
+        function closeMenu(){ prn_menu.classList.add('hidden'); menuOpen = false; selectedIdx = -1; }
+
         // Tecla 'C': solo inicia la rutina mágica (categoría A) si el juego aún NO ha empezado (step === 0).
         // Si el mago o espectador la vuelve a pulsar durante el juego, queda completamente anulada.
         document.getElementById('secret').onclick = () => {
